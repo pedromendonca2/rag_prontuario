@@ -2,4 +2,7 @@ requests
 sentence-transformers
 chromadb
 numpy
-
+aio_pika
+fastapi
+uvicorn
+pydantic

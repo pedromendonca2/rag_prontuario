@@ -22,13 +22,22 @@ def main():
     parser.add_argument(
         "--chat",
         action="store_true",
-        default=True,
-        help="Inicia sessao de chat interativo (padrao)",
+        help="Inicia sessao de chat interativo (padrao se nada for passado)",
     )
     parser.add_argument(
         "--resumo",
         action="store_true",
         help="Gera resumo clinico estruturado via LLM e exibe no terminal",
+    )
+    parser.add_argument(
+        "--api",
+        action="store_true",
+        help="Inicia o servidor web FastAPI",
+    )
+    parser.add_argument(
+        "--worker",
+        action="store_true",
+        help="Inicia o worker consumidor do RabbitMQ",
     )
     parser.add_argument(
         "--modelo",
@@ -43,6 +52,22 @@ def main():
     )
 
     args = parser.parse_args()
+
+    if not (args.resumo or args.worker or args.api):
+        args.chat = True
+
+    if args.api:
+        import uvicorn
+        print("\n[main] ===== INICIANDO FASTAPI =====")
+        uvicorn.run("api:app", host="0.0.0.0", port=8000, reload=True)
+        return
+
+    if args.worker:
+        import worker
+        import asyncio
+        print("\n[main] ===== INICIANDO WORKER RABBITMQ =====")
+        asyncio.run(worker.main())
+        return
 
     modelo = args.modelo or config.MODELO_LLM
 
