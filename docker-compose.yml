@@ -1,18 +1,61 @@
-version: "3.8"
-
 services:
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq_rag
+    restart: unless-stopped
     ports:
-      - "5672:5672"   # Porta padrao para a mensageria AMQP (RPC)
-      - "15672:15672" # Porta para o painel de administracao web
+      - "5672:5672"   # Mensageria AMQP (RPC)
+      - "15672:15672" # Painel Web Management
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  worker:
+    build: .
+    container_name: rag_worker
+    restart: unless-stopped
+    network_mode: host
+    command: ["python", "main.py", "--worker"]
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - RABBITMQ_URL=amqp://guest:guest@127.0.0.1:5672/
+      - OLLAMA_URL=${OLLAMA_URL:-http://127.0.0.1:11434/api/generate}
+      - MODELO_LLM=${MODELO_LLM:-qwen2.5:7b}
+      - OLLAMA_NUM_GPU=${OLLAMA_NUM_GPU:-22}
+      - OLLAMA_NUM_CTX=${OLLAMA_NUM_CTX:-4096}
+      - DIRETORIO_CHROMA=/app/chroma_db
+      - ARQUIVO_JSON=/app/prontuario_estruturado.json
+    volumes:
+      - ./:/app
+      - ../chroma_db:/app/chroma_db
+      - ../prontuario_estruturado.json:/app/prontuario_estruturado.json
+      - /home/ease/.cache/huggingface:/root/.cache/huggingface
+
+  api:
+    build: .
+    container_name: rag_api
+    restart: unless-stopped
+    command: ["python", "main.py", "--api"]
+    ports:
+      - "8000:8000"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+    volumes:
+      - ./:/app
+      - ../chroma_db:/app/chroma_db
+      - ../prontuario_estruturado.json:/app/prontuario_estruturado.json
 
 volumes:
   rabbitmq_data:
-

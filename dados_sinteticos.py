@@ -143,6 +143,7 @@ def gerar_evolucoes():
     for i, texto in enumerate(EVOLUCOES_PACIENTE, start=1):
         registros.append({
             "id": i,
+            "paciente_id": "default_patient",
             "data": extrair_data(texto),
             "tipo_evento": extrair_tipo_evento(texto),
             "texto_bruto": texto,
